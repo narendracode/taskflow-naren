@@ -8,7 +8,7 @@ export const usersApi = baseApi.injectEndpoints({
     }),
 
     searchUsers: builder.query<User[], string>({
-      query: (q) => `/users/search?q=${encodeURIComponent(q)}&limit=10`,
+      query: (q) => `/users?q=${encodeURIComponent(q)}&limit=10`,
     }),
 
     updatePreferences: builder.mutation<User, { theme: Theme }>({

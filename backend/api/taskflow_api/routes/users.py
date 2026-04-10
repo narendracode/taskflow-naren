@@ -20,14 +20,14 @@ class UpdatePreferencesRequest(BaseModel):
     theme: Literal["light", "dark"]
 
 
-@router.get("/search", response_model=list[UserResponse])
-async def search_users(
+@router.get("", response_model=list[UserResponse])
+async def list_users(
     q: str = Query("", max_length=100),
     limit: int = Query(10, ge=1, le=50),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Search users by name (case-insensitive prefix/substring match)."""
+    """List users, optionally filtered by name (case-insensitive substring match)."""
     stmt = select(User).order_by(User.name).limit(limit)
     if q.strip():
         pattern = f"%{q.strip()}%"

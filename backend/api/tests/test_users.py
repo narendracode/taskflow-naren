@@ -78,7 +78,7 @@ async def test_search_users_by_name(client: AsyncClient):
     await register_user(client, "bob_j@test.com", name="Bob Jones")
     await register_user(client, "alice_w@test.com", name="Alice Wong")
 
-    resp = await client.get("/users/search?q=Alice", headers=headers)
+    resp = await client.get("/users?q=Alice", headers=headers)
     assert resp.status_code == 200
     results = resp.json()
     assert isinstance(results, list)
@@ -90,7 +90,7 @@ async def test_search_users_case_insensitive(client: AsyncClient):
     headers = await auth_headers(client, "search_ci@test.com", name="CISearcher")
     await register_user(client, "diana_c@test.com", name="Diana Clarke")
 
-    resp = await client.get("/users/search?q=diana", headers=headers)
+    resp = await client.get("/users?q=diana", headers=headers)
     assert resp.status_code == 200
     results = resp.json()
     assert any(u["name"] == "Diana Clarke" for u in results)
@@ -98,7 +98,7 @@ async def test_search_users_case_insensitive(client: AsyncClient):
 
 async def test_search_users_empty_query_returns_users(client: AsyncClient):
     headers = await auth_headers(client, "search_empty@test.com", name="EmptySearcher")
-    resp = await client.get("/users/search?q=", headers=headers)
+    resp = await client.get("/users?q=", headers=headers)
     assert resp.status_code == 200
     results = resp.json()
     assert isinstance(results, list)
@@ -107,19 +107,19 @@ async def test_search_users_empty_query_returns_users(client: AsyncClient):
 
 async def test_search_users_no_match(client: AsyncClient):
     headers = await auth_headers(client, "search_none@test.com", name="NoMatchSearcher")
-    resp = await client.get("/users/search?q=Zzyzzyva99", headers=headers)
+    resp = await client.get("/users?q=Zzyzzyva99", headers=headers)
     assert resp.status_code == 200
     assert resp.json() == []
 
 
 async def test_search_users_respects_limit(client: AsyncClient):
     headers = await auth_headers(client, "search_limit@test.com", name="LimitSearcher")
-    resp = await client.get("/users/search?q=&limit=2", headers=headers)
+    resp = await client.get("/users?q=&limit=2", headers=headers)
     assert resp.status_code == 200
     results = resp.json()
     assert len(results) <= 2
 
 
 async def test_search_users_unauthenticated(client: AsyncClient):
-    resp = await client.get("/users/search?q=Alice")
+    resp = await client.get("/users?q=Alice")
     assert resp.status_code == 401
