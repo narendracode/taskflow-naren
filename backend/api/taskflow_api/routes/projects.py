@@ -14,6 +14,7 @@ from ..dependencies import get_current_user
 from ..schemas.common import AssigneeStats, PaginatedResponse, StatsResponse
 from ..schemas.project import ProjectCreate, ProjectDetailResponse, ProjectResponse, ProjectUpdate
 from ..schemas.task import TaskCreate, TaskResponse
+from ..sse import sse_manager
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -191,7 +192,9 @@ async def create_task(
     await db.flush()
     await db.refresh(task)
     logger.info("task_created", task_id=str(task.id), project_id=str(project_id))
-    return TaskResponse.model_validate(task)
+    response = TaskResponse.model_validate(task)
+    await sse_manager.publish(str(project_id), "task_created", response.model_dump(mode="json"))
+    return response
 
 
 @router.get("/{project_id}/stats", response_model=StatsResponse)

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .middleware.logging import RequestLoggingMiddleware
-from .routes import auth, projects, tasks, users
+from .routes import auth, events, projects, tasks, users
 
 # ── Structured logging setup ────────────────────────────────────────────────
 
@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix="/users", tags=["users"])
     app.include_router(projects.router, prefix="/projects", tags=["projects"])
     app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+    app.include_router(events.router, prefix="/projects", tags=["events"])
 
     @app.get("/health", tags=["health"])
     async def health():

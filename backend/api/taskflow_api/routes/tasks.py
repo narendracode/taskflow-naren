@@ -11,6 +11,7 @@ from taskflow_common.models import Project, Task, User
 
 from ..dependencies import get_current_user
 from ..schemas.task import TaskResponse, TaskUpdate
+from ..sse import sse_manager
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -37,7 +38,9 @@ async def update_task(
     await db.flush()
     await db.refresh(task)
     logger.info("task_updated", task_id=str(task_id))
-    return TaskResponse.model_validate(task)
+    response = TaskResponse.model_validate(task)
+    await sse_manager.publish(str(task.project_id), "task_updated", response.model_dump(mode="json"))
+    return response
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -61,5 +64,8 @@ async def delete_task(
             detail="Only the project owner can delete tasks",
         )
 
+    project_id = str(task.project_id)
+    task_id_str = str(task_id)
     await db.delete(task)
-    logger.info("task_deleted", task_id=str(task_id))
+    logger.info("task_deleted", task_id=task_id_str)
+    await sse_manager.publish(project_id, "task_deleted", {"id": task_id_str, "project_id": project_id})

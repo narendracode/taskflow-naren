@@ -24,6 +24,7 @@ import {
   useDeleteTaskMutation,
 } from "@/features/tasks/tasksApi";
 import { useAppSelector } from "@/app/store";
+import { useProjectSSE } from "@/hooks/useProjectSSE";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
 import { formatDate, extractErrorMessage, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,9 @@ export function ProjectDetailPage() {
 
   const { data: project, isLoading: projectLoading, error: projectError } =
     useGetProjectQuery(projectId, { skip: !projectId });
+
+  // Real-time updates via SSE — keeps other tabs/devices in sync
+  useProjectSSE(projectId || undefined);
 
   const queryArgs = {
     projectId,
