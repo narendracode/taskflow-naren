@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: taskflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d taskflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Migrate + Seed (common workspace) ──────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: common/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"          # one-shot — exits 0 on success
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
+      DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
+
+  # ── API (api workspace) ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - api/.env.example          # override with a real .env in production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
+      DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
+
+volumes:
+  postgres_data:
