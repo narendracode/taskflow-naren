@@ -1,8 +1,9 @@
 from typing import Literal
 
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from taskflow_common.database import get_db
@@ -17,6 +18,23 @@ router = APIRouter()
 
 class UpdatePreferencesRequest(BaseModel):
     theme: Literal["light", "dark"]
+
+
+@router.get("/search", response_model=list[UserResponse])
+async def search_users(
+    q: str = Query("", max_length=100),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search users by name (case-insensitive prefix/substring match)."""
+    stmt = select(User).order_by(User.name).limit(limit)
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        stmt = select(User).where(func.lower(User.name).like(func.lower(pattern))).order_by(User.name).limit(limit)
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+    return [UserResponse.model_validate(u) for u in users]
 
 
 @router.get("/me", response_model=UserResponse)

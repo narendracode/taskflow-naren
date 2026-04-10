@@ -7,6 +7,10 @@ export const usersApi = baseApi.injectEndpoints({
       query: () => "/users/me",
     }),
 
+    searchUsers: builder.query<User[], string>({
+      query: (q) => `/users/search?q=${encodeURIComponent(q)}&limit=10`,
+    }),
+
     updatePreferences: builder.mutation<User, { theme: Theme }>({
       query: (body) => ({
         url: "/users/me/preferences",
@@ -17,4 +21,8 @@ export const usersApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetMeQuery, useUpdatePreferencesMutation } = usersApi;
+export const {
+  useGetMeQuery,
+  useSearchUsersQuery,
+  useUpdatePreferencesMutation,
+} = usersApi;
