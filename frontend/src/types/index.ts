@@ -1,10 +1,13 @@
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 
+export type Theme = "light" | "dark";
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  theme: Theme;
   created_at: string;
 }
 

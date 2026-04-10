@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     name: str
     email: str
+    theme: str
     created_at: datetime
 
     model_config = {"from_attributes": True}

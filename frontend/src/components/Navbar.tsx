@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LogOutIcon, LayoutDashboardIcon } from "lucide-react";
+import { LogOutIcon, LayoutDashboardIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/store";
-import { logout } from "@/features/auth/authSlice";
+import { logout, setCredentials } from "@/features/auth/authSlice";
+import { useUpdatePreferencesMutation } from "@/features/users/usersApi";
 import { Button } from "./ui/button";
 import { initials } from "@/lib/utils";
 
@@ -9,10 +10,26 @@ export function Navbar() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
+  const token = useAppSelector((s) => s.auth.token);
+
+  const [updatePreferences, { isLoading: savingTheme }] =
+    useUpdatePreferencesMutation();
 
   const handleLogout = () => {
     dispatch(logout());
     navigate("/login");
+  };
+
+  const handleThemeToggle = async () => {
+    if (!user || !token) return;
+    const newTheme = user.theme === "dark" ? "light" : "dark";
+    try {
+      const updated = await updatePreferences({ theme: newTheme }).unwrap();
+      // Sync updated user (with persisted theme) back into the store + localStorage
+      dispatch(setCredentials({ user: updated, token }));
+    } catch {
+      // toggle reverts automatically since state wasn't mutated on error
+    }
   };
 
   return (
@@ -29,8 +46,8 @@ export function Navbar() {
 
         {/* User area */}
         {user && (
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
+          <div className="flex items-center gap-2">
+            {/* Avatar + name */}
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                 {initials(user.name)}
@@ -40,6 +57,22 @@ export function Navbar() {
               </span>
             </div>
 
+            {/* Dark / light toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleThemeToggle}
+              disabled={savingTheme}
+              title={user.theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {user.theme === "dark" ? (
+                <SunIcon className="h-4 w-4" />
+              ) : (
+                <MoonIcon className="h-4 w-4" />
+              )}
+            </Button>
+
+            {/* Logout */}
             <Button
               variant="ghost"
               size="icon"

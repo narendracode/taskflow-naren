@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .middleware.logging import RequestLoggingMiddleware
-from .routes import auth, projects, tasks
+from .routes import auth, projects, tasks, users
 
 # ── Structured logging setup ────────────────────────────────────────────────
 
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
     # ── Routers ──────────────────────────────────────────────────────────────
 
     app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    app.include_router(users.router, prefix="/users", tags=["users"])
     app.include_router(projects.router, prefix="/projects", tags=["projects"])
     app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 
