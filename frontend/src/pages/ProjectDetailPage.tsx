@@ -35,9 +35,9 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 // ── Column config ─────────────────────────────────────────────────────────────
 
 const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: "todo", label: "Todo", color: "bg-slate-100" },
-  { status: "in_progress", label: "In Progress", color: "bg-blue-50" },
-  { status: "done", label: "Done", color: "bg-green-50" },
+  { status: "todo", label: "Todo", color: "bg-slate-100 dark:bg-slate-800/50" },
+  { status: "in_progress", label: "In Progress", color: "bg-blue-50 dark:bg-blue-950/40" },
+  { status: "done", label: "Done", color: "bg-green-50 dark:bg-green-950/40" },
 ];
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -315,7 +315,7 @@ function KanbanColumn({
     <div className={cn("rounded-xl p-3", color)}>
       <div className="mb-3 flex items-center gap-2">
         <span className="text-sm font-semibold">{label}</span>
-        <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-medium">
+        <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-xs font-medium">
           {tasks.length}
         </span>
       </div>
@@ -352,7 +352,7 @@ interface TaskCardProps {
 
 function TaskCard({ task, isOwner, onEdit, onStatusChange, onDelete }: TaskCardProps) {
   return (
-    <div className="rounded-lg border bg-white p-3 shadow-sm">
+    <div className="rounded-lg border bg-card text-card-foreground p-3 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
         <p
           className="cursor-pointer text-sm font-medium leading-snug hover:text-primary"
