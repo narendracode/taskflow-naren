@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlusIcon, FolderIcon, Trash2Icon } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useForm } from "react-hook-form";
 import {
   useGetProjectsQuery,
@@ -34,6 +35,7 @@ export function ProjectsPage() {
   const navigate = useNavigate();
   const currentUser = useAppSelector((s) => s.auth.user);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data, isLoading, error } = useGetProjectsQuery();
   const [createProject, { isLoading: creating }] = useCreateProjectMutation();
@@ -54,10 +56,16 @@ export function ProjectsPage() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, projectId: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
-    if (!confirm("Delete this project and all its tasks?")) return;
-    await deleteProject(projectId);
+    setDeleteTarget(projectId);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTarget) {
+      await deleteProject(deleteTarget);
+      setDeleteTarget(null);
+    }
   };
 
   return (
@@ -112,11 +120,20 @@ export function ProjectsPage() {
               project={project}
               isOwner={project.owner_id === currentUser?.id}
               onClick={() => navigate(`/projects/${project.id}`)}
-              onDelete={(e) => handleDelete(e, project.id)}
+              onDelete={(e) => handleDeleteClick(e, project.id)}
             />
           ))}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Project"
+        description="This will permanently delete the project and all its tasks. This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Create project dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

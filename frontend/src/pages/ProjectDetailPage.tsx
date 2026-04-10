@@ -30,6 +30,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/EmptyState";
 import { TaskModal } from "@/components/TaskModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 // ── Column config ─────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export function ProjectDetailPage() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   const { data: project, isLoading: projectLoading, error: projectError } =
     useGetProjectQuery(projectId, { skip: !projectId });
@@ -93,9 +95,15 @@ export function ProjectDetailPage() {
     updateTask({ taskId: task.id, projectId, status: newStatus });
   };
 
-  const handleDelete = async (taskId: string) => {
-    if (!confirm("Delete this task?")) return;
-    await deleteTask({ taskId, projectId });
+  const handleDeleteClick = (taskId: string) => {
+    setDeleteTaskId(taskId);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (deleteTaskId) {
+      await deleteTask({ taskId: deleteTaskId, projectId });
+      setDeleteTaskId(null);
+    }
   };
 
   // Group tasks by status for Kanban columns
@@ -234,7 +242,7 @@ export function ProjectDetailPage() {
                       projectId={projectId}
                       onEdit={openEdit}
                       onStatusChange={handleStatusChange}
-                      onDelete={handleDelete}
+                      onDelete={handleDeleteClick}
                     />
                   );
                 })}
@@ -250,7 +258,7 @@ export function ProjectDetailPage() {
                     projectId={projectId}
                     onEdit={() => openEdit(task)}
                     onStatusChange={(s) => handleStatusChange(task, s)}
-                    onDelete={() => handleDelete(task.id)}
+                    onDelete={() => handleDeleteClick(task.id)}
                   />
                 ))}
               </ul>
@@ -258,6 +266,15 @@ export function ProjectDetailPage() {
           )}
         </>
       )}
+
+      {/* Delete task confirmation */}
+      <ConfirmDialog
+        open={deleteTaskId !== null}
+        title="Delete Task"
+        description="This will permanently delete this task. This action cannot be undone."
+        onConfirm={confirmDeleteTask}
+        onCancel={() => setDeleteTaskId(null)}
+      />
 
       {/* Task create/edit modal */}
       <TaskModal
