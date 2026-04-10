@@ -193,3 +193,177 @@ async def test_project_stats(client: AsyncClient):
     assert body["by_status"]["todo"] == 1
     assert body["by_status"]["done"] == 2
     assert body["by_status"]["in_progress"] == 0
+
+
+# ── Task create with optional fields ─────────────────────────────────────────
+
+
+async def test_create_task_with_description(client: AsyncClient):
+    headers = await auth_headers(client, "task_desc@test.com")
+    project = await create_project(client, headers)
+    resp = await client.post(
+        f"/projects/{project['id']}/tasks",
+        json={"title": "Described Task", "description": "Some details"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["description"] == "Some details"
+
+
+async def test_create_task_with_due_date(client: AsyncClient):
+    headers = await auth_headers(client, "task_due@test.com")
+    project = await create_project(client, headers)
+    resp = await client.post(
+        f"/projects/{project['id']}/tasks",
+        json={"title": "Dated Task", "due_date": "2026-12-31"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["due_date"] == "2026-12-31"
+
+
+async def test_create_task_with_assignee(client: AsyncClient):
+    data = await register_user(client, "task_assign_owner@test.com")
+    headers = {"Authorization": f"Bearer {data['access_token']}"}
+    user_id = data["user"]["id"]
+    project = await create_project(client, headers)
+    resp = await client.post(
+        f"/projects/{project['id']}/tasks",
+        json={"title": "Assigned Task", "assignee_id": user_id},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["assignee_id"] == user_id
+
+
+async def test_create_task_invalid_title_empty(client: AsyncClient):
+    headers = await auth_headers(client, "task_notitle@test.com")
+    project = await create_project(client, headers)
+    resp = await client.post(
+        f"/projects/{project['id']}/tasks",
+        json={"title": ""},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+
+async def test_create_task_project_not_found(client: AsyncClient):
+    headers = await auth_headers(client, "task_noproj@test.com")
+    resp = await client.post(
+        "/projects/00000000-0000-0000-0000-000000000000/tasks",
+        json={"title": "Orphan Task"},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+# ── Task list — assignee filter ──────────────────────────────────────────────
+
+
+async def test_list_tasks_with_assignee_filter(client: AsyncClient):
+    data = await register_user(client, "task_afilter@test.com")
+    headers = {"Authorization": f"Bearer {data['access_token']}"}
+    user_id = data["user"]["id"]
+    project = await create_project(client, headers)
+    await create_task(client, headers, project["id"], "Assigned", assignee_id=user_id)
+    await create_task(client, headers, project["id"], "Unassigned")
+
+    resp = await client.get(
+        f"/projects/{project['id']}/tasks?assignee={user_id}", headers=headers
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["data"][0]["assignee_id"] == user_id
+
+
+async def test_list_tasks_project_not_found(client: AsyncClient):
+    headers = await auth_headers(client, "task_list_noproj@test.com")
+    resp = await client.get(
+        "/projects/00000000-0000-0000-0000-000000000000/tasks", headers=headers
+    )
+    assert resp.status_code == 404
+
+
+# ── Task update — multiple fields & not found ────────────────────────────────
+
+
+async def test_update_task_multiple_fields(client: AsyncClient):
+    headers = await auth_headers(client, "task_multiup@test.com")
+    project = await create_project(client, headers)
+    task = await create_task(client, headers, project["id"])
+
+    resp = await client.patch(
+        f"/tasks/{task['id']}",
+        json={"title": "Updated Title", "priority": "high", "description": "New desc"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "Updated Title"
+    assert body["priority"] == "high"
+    assert body["description"] == "New desc"
+
+
+async def test_update_task_not_found(client: AsyncClient):
+    headers = await auth_headers(client, "task_upnf@test.com")
+    resp = await client.patch(
+        "/tasks/00000000-0000-0000-0000-000000000000",
+        json={"status": "done"},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_delete_task_not_found(client: AsyncClient):
+    headers = await auth_headers(client, "task_delnf@test.com")
+    resp = await client.delete(
+        "/tasks/00000000-0000-0000-0000-000000000000", headers=headers
+    )
+    assert resp.status_code == 404
+
+
+# ── Project — delete non-owner forbidden ─────────────────────────────────────
+
+
+async def test_delete_project_non_owner_forbidden(client: AsyncClient):
+    owner_headers = await auth_headers(client, "projdel_owner@test.com")
+    other_headers = await auth_headers(client, "projdel_other@test.com")
+    project = await create_project(client, owner_headers)
+    resp = await client.delete(f"/projects/{project['id']}", headers=other_headers)
+    assert resp.status_code == 403
+
+
+# ── Project — visible to assigned user ───────────────────────────────────────
+
+
+async def test_list_projects_includes_assigned(client: AsyncClient):
+    """A user should see projects they have tasks assigned to, even if not the owner."""
+    owner_data = await register_user(client, "projvis_owner@test.com")
+    owner_headers = {"Authorization": f"Bearer {owner_data['access_token']}"}
+
+    other_data = await register_user(client, "projvis_other@test.com")
+    other_headers = {"Authorization": f"Bearer {other_data['access_token']}"}
+    other_id = other_data["user"]["id"]
+
+    project = await create_project(client, owner_headers, "Shared Project")
+    await create_task(client, owner_headers, project["id"], "For Other", assignee_id=other_id)
+
+    resp = await client.get("/projects", headers=other_headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert any(p["name"] == "Shared Project" for p in body["data"])
+
+
+# ── Project stats on empty project ───────────────────────────────────────────
+
+
+async def test_project_stats_empty(client: AsyncClient):
+    headers = await auth_headers(client, "stats_empty@test.com")
+    project = await create_project(client, headers)
+    resp = await client.get(f"/projects/{project['id']}/stats", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["by_status"]["todo"] == 0
+    assert body["by_status"]["done"] == 0
+    assert body["by_status"]["in_progress"] == 0

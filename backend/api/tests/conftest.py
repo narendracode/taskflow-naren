@@ -135,15 +135,15 @@ async def client(test_engine):
 # ── Helper factories ──────────────────────────────────────────────────────────
 
 
-async def register_user(client: AsyncClient, email: str, password: str = "Password1!") -> dict:
+async def register_user(client: AsyncClient, email: str, password: str = "Password1!", name: str = "Test User") -> dict:
     resp = await client.post(
         "/auth/register",
-        json={"name": "Test User", "email": email, "password": password},
+        json={"name": name, "email": email, "password": password},
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
 
 
-async def auth_headers(client: AsyncClient, email: str, password: str = "Password1!") -> dict:
-    data = await register_user(client, email, password)
+async def auth_headers(client: AsyncClient, email: str, password: str = "Password1!", name: str = "Test User") -> dict:
+    data = await register_user(client, email, password, name)
     return {"Authorization": f"Bearer {data['access_token']}"}
