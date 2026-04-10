@@ -1,5 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+  type DraggableProvidedDragHandleProps,
+} from "@hello-pangea/dnd";
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -8,6 +15,7 @@ import {
   UserIcon,
   Trash2Icon,
   PencilIcon,
+  GripVerticalIcon,
 } from "lucide-react";
 import { useGetProjectQuery } from "@/features/projects/projectsApi";
 import {
@@ -95,6 +103,27 @@ export function ProjectDetailPage() {
     updateTask({ taskId: task.id, projectId, status: newStatus });
   };
 
+  // Group tasks by status for Kanban columns
+  const tasks = tasksData?.data ?? [];
+  const byStatus = (status: TaskStatus) =>
+    tasks.filter((t) => t.status === status);
+
+  const onDragEnd = useCallback(
+    (result: DropResult) => {
+      const { destination, source, draggableId } = result;
+      if (!destination) return;
+      if (destination.droppableId === source.droppableId) return;
+
+      const newStatus = destination.droppableId as TaskStatus;
+      const task = tasks.find((t) => t.id === draggableId);
+      if (task && task.status !== newStatus) {
+        handleStatusChange(task, newStatus);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, projectId]
+  );
+
   const handleDeleteClick = (taskId: string) => {
     setDeleteTaskId(taskId);
   };
@@ -105,11 +134,6 @@ export function ProjectDetailPage() {
       setDeleteTaskId(null);
     }
   };
-
-  // Group tasks by status for Kanban columns
-  const tasks = tasksData?.data ?? [];
-  const byStatus = (status: TaskStatus) =>
-    tasks.filter((t) => t.status === status);
 
   // ── Loading / error ──────────────────────────────────────────────────────
 
@@ -223,30 +247,32 @@ export function ProjectDetailPage() {
           ) : (
             <>
               {/* Kanban — visible on md+ */}
-              <div className="hidden gap-4 md:grid md:grid-cols-3">
-                {COLUMNS.map(({ status, label, color }) => {
-                  const col = statusFilter === "all"
-                    ? byStatus(status)
-                    : status === statusFilter
-                    ? tasks
-                    : [];
-                  if (statusFilter !== "all" && status !== statusFilter) return null;
-                  return (
-                    <KanbanColumn
-                      key={status}
-                      status={status}
-                      label={label}
-                      color={color}
-                      tasks={col}
-                      isOwner={isOwner}
-                      projectId={projectId}
-                      onEdit={openEdit}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteClick}
-                    />
-                  );
-                })}
-              </div>
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="hidden gap-4 md:grid md:grid-cols-3">
+                  {COLUMNS.map(({ status, label, color }) => {
+                    const col = statusFilter === "all"
+                      ? byStatus(status)
+                      : status === statusFilter
+                      ? tasks
+                      : [];
+                    if (statusFilter !== "all" && status !== statusFilter) return null;
+                    return (
+                      <KanbanColumn
+                        key={status}
+                        status={status}
+                        label={label}
+                        color={color}
+                        tasks={col}
+                        isOwner={isOwner}
+                        projectId={projectId}
+                        onEdit={openEdit}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDeleteClick}
+                      />
+                    );
+                  })}
+                </div>
+              </DragDropContext>
 
               {/* Flat list — visible on mobile */}
               <ul className="grid gap-3 md:hidden">
@@ -302,7 +328,7 @@ interface ColumnProps {
 }
 
 function KanbanColumn({
-  status: _status,
+  status,
   label,
   color,
   tasks,
@@ -312,31 +338,54 @@ function KanbanColumn({
   onDelete,
 }: ColumnProps) {
   return (
-    <div className={cn("rounded-xl p-3", color)}>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm font-semibold">{label}</span>
-        <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-xs font-medium">
-          {tasks.length}
-        </span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            isOwner={isOwner}
-            onEdit={() => onEdit(task)}
-            onStatusChange={(s) => onStatusChange(task, s)}
-            onDelete={() => onDelete(task.id)}
-          />
-        ))}
-        {tasks.length === 0 && (
-          <p className="py-6 text-center text-xs text-muted-foreground">
-            No tasks
-          </p>
-        )}
-      </div>
-    </div>
+    <Droppable droppableId={status}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={cn(
+            "rounded-xl p-3 transition-colors",
+            color,
+            snapshot.isDraggingOver && "ring-2 ring-primary/40"
+          )}
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-sm font-semibold">{label}</span>
+            <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-xs font-medium">
+              {tasks.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {tasks.map((task, index) => (
+              <Draggable key={task.id} draggableId={task.id} index={index}>
+                {(dragProvided, dragSnapshot) => (
+                  <div
+                    ref={dragProvided.innerRef}
+                    {...dragProvided.draggableProps}
+                  >
+                    <TaskCard
+                      task={task}
+                      isOwner={isOwner}
+                      onEdit={() => onEdit(task)}
+                      onStatusChange={(s) => onStatusChange(task, s)}
+                      onDelete={() => onDelete(task.id)}
+                      isDragging={dragSnapshot.isDragging}
+                      dragHandleProps={dragProvided.dragHandleProps}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+            {tasks.length === 0 && (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                No tasks
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </Droppable>
   );
 }
 
@@ -348,18 +397,31 @@ interface TaskCardProps {
   onEdit: () => void;
   onStatusChange: (status: TaskStatus) => void;
   onDelete: () => void;
+  isDragging?: boolean;
+  dragHandleProps?: DraggableProvidedDragHandleProps | null;
 }
 
-function TaskCard({ task, isOwner, onEdit, onStatusChange, onDelete }: TaskCardProps) {
+function TaskCard({ task, isOwner, onEdit, onStatusChange, onDelete, isDragging, dragHandleProps }: TaskCardProps) {
   return (
-    <div className="rounded-lg border bg-card text-card-foreground p-3 shadow-sm">
+    <div className={cn(
+      "rounded-lg border bg-card text-card-foreground p-3 shadow-sm transition-shadow",
+      isDragging && "shadow-lg ring-2 ring-primary/30"
+    )}>
       <div className="mb-2 flex items-start justify-between gap-2">
-        <p
-          className="cursor-pointer text-sm font-medium leading-snug hover:text-primary"
-          onClick={onEdit}
-        >
-          {task.title}
-        </p>
+        <div className="flex items-start gap-1.5 min-w-0">
+          <span
+            {...dragHandleProps}
+            className="mt-0.5 shrink-0 cursor-grab text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing"
+          >
+            <GripVerticalIcon className="h-4 w-4" />
+          </span>
+          <p
+            className="cursor-pointer text-sm font-medium leading-snug hover:text-primary"
+            onClick={onEdit}
+          >
+            {task.title}
+          </p>
+        </div>
         <div className="flex shrink-0 gap-1">
           <button
             onClick={onEdit}
