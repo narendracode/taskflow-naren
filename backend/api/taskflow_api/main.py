@@ -1,8 +1,10 @@
 import logging
+import os
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .middleware.logging import RequestLoggingMiddleware
@@ -34,6 +36,18 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
+    )
+
+    # CORS — allow origins from CORS_ORIGINS env var (comma-separated).
+    # Defaults to * so local dev works without any extra config.
+    raw_origins = os.getenv("CORS_ORIGINS", "*")
+    origins = [o.strip() for o in raw_origins.split(",")]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     app.add_middleware(RequestLoggingMiddleware)

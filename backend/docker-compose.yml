@@ -29,7 +29,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    restart: "no"          # one-shot — exits 0 on success
+    restart: "no"            # one-shot — exits 0 on success
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
       DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
@@ -46,10 +46,26 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - api/.env.example          # override with a real .env in production
+      - api/.env.example       # override with a real .env in production
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
       DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
+      # Allow requests from the frontend container and local browser
+      CORS_ORIGINS: "http://localhost:3000"
+
+  # ── Frontend (React + nginx) ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # Browser reaches the API at this URL — must be host-accessible.
+        VITE_API_URL: "http://localhost:8000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    ports:
+      - "3000:80"
 
 volumes:
   postgres_data:

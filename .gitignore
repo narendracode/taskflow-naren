@@ -1,4 +1,4 @@
-# Python
+# ── Python ─────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,38 +13,46 @@ build/
 venv/
 env/
 
-# IDE
+# ── Node / Frontend ────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+*.tsbuildinfo
+
+# ── IDE ────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Environment variables
+# ── Environment variables ──────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
+.db-remote-url
 
-# Claude
+# ── Claude ─────────────────────────────────────────────────────────────────
 .claude/
 
-# OS
+# ── OS ─────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Testing / Coverage
+# ── Testing / Coverage ─────────────────────────────────────────────────────
 .coverage
 .coverage.*
 htmlcov/
 .pytest_cache/
 .mypy_cache/
 
-# Docker
+# ── Docker ─────────────────────────────────────────────────────────────────
 docker-compose.override.yml
 
-# Database
+# ── Database ───────────────────────────────────────────────────────────────
 *.db
 *.sqlite3
 
-# Logs
+# ── Logs ───────────────────────────────────────────────────────────────────
 *.log

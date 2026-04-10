@@ -139,11 +139,17 @@ test: ## Run integration tests with coverage report
 		--cov --cov-report=term-missing --cov-report=html
 
 # ─── frontend ──────────────────────────────────────────────────────────────
-frontend: ## Start the React dev server (port 3000)
+frontend: ## Start the React dev server (port 3000, proxies /api → localhost:8000)
 	cd $(FRONTEND_DIR) && npm run dev
 
+frontend-install: ## Install frontend npm dependencies
+	cd $(FRONTEND_DIR) && npm install
+
 # ─── Docker Compose shortcuts ──────────────────────────────────────────────
-docker-up: ## Build and start all services (postgres → migrate → api)
+# All compose commands run from backend/ where docker-compose.yml lives.
+# The frontend service's build context points to ../frontend (relative to backend/).
+
+docker-up: ## Build and start all services (postgres → migrate → api → frontend)
 	cd $(BACKEND_DIR) && docker compose up --build
 
 docker-down: ## Stop and remove all Docker Compose services
