@@ -2,6 +2,19 @@ version: "3.9"
 
 services:
 
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
@@ -42,6 +55,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -50,6 +65,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
       DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
+      REDIS_URL: redis://redis:6379/0
       # Allow requests from the frontend container and local browser
       CORS_ORIGINS: "http://localhost:3000"
 

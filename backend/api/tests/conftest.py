@@ -107,29 +107,37 @@ async def db_session(test_engine):
 @pytest_asyncio.fixture()
 async def client(test_engine):
     """HTTP test client wired to the test database."""
+    from unittest.mock import AsyncMock, patch
+
     from taskflow_common.database import get_db
     from taskflow_api.main import create_app
+    from taskflow_api.sse import sse_manager
 
-    # Create a fresh app per test so dependency_overrides don't leak
-    app = create_app()
+    # Patch the SSE manager so tests don't need a running Redis instance
+    with patch.object(sse_manager, "connect", new_callable=AsyncMock), \
+         patch.object(sse_manager, "disconnect", new_callable=AsyncMock), \
+         patch.object(sse_manager, "publish", new_callable=AsyncMock):
 
-    TestSession = async_sessionmaker(
-        test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+        # Create a fresh app per test so dependency_overrides don't leak
+        app = create_app()
 
-    async def override_get_db():
-        async with TestSession() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
+        TestSession = async_sessionmaker(
+            test_engine, class_=AsyncSession, expire_on_commit=False
+        )
 
-    app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
+        async def override_get_db():
+            async with TestSession() as session:
+                try:
+                    yield session
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
+
+        app.dependency_overrides[get_db] = override_get_db
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+        app.dependency_overrides.clear()
 
 
 # ── Helper factories ──────────────────────────────────────────────────────────

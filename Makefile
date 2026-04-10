@@ -7,6 +7,11 @@ DB_PASSWORD   := postgres
 LOCAL_DB_ASYNC_URL := postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@localhost:$(DB_PORT)/$(DB_NAME)
 LOCAL_DB_SYNC_URL  := postgresql://$(DB_USER):$(DB_PASSWORD)@localhost:$(DB_PORT)/$(DB_NAME)
 
+# ─── Local Redis (Docker) ──────────────────────────────────────────────────
+REDIS_CONTAINER := taskflow-redis
+REDIS_PORT      := 6379
+LOCAL_REDIS_URL := redis://localhost:$(REDIS_PORT)/0
+
 ENV_FILE          := backend/api/.env
 REMOTE_URL_BACKUP := .db-remote-url
 
@@ -17,6 +22,7 @@ FRONTEND_DIR := frontend
 
 .PHONY: help \
         db-start db-stop db-status \
+        redis-start redis-stop redis-status \
         migrate-generate migrate-run seed \
         install server test \
         docker-up docker-down docker-logs \
@@ -105,6 +111,44 @@ open(env_file, 'w').write(content)"; \
 # ─── db-status ─────────────────────────────────────────────────────────────
 db-status: ## Show the Postgres container status
 	@docker ps -a --filter "name=^/$(DB_CONTAINER)$$" \
+		--format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# ─── redis-start ───────────────────────────────────────────────────────────
+redis-start: ## Start local Redis in Docker and update REDIS_URL in .env
+	@if [ ! -f $(ENV_FILE) ]; then \
+		echo "⚠  $(ENV_FILE) not found — run 'make env' first"; exit 1; \
+	fi
+	@if docker ps -a --format '{{.Names}}' | grep -q '^$(REDIS_CONTAINER)$$'; then \
+		docker start $(REDIS_CONTAINER); \
+	else \
+		echo "Creating container $(REDIS_CONTAINER)..."; \
+		docker run -d \
+			--name $(REDIS_CONTAINER) \
+			-p $(REDIS_PORT):6379 \
+			redis:7-alpine; \
+	fi
+	@printf "Waiting for Redis"
+	@until docker exec $(REDIS_CONTAINER) redis-cli ping 2>/dev/null | grep -q PONG; do \
+		printf '.'; sleep 1; \
+	done
+	@printf "\n"
+	@python3 -c "\
+import re; \
+content = open('$(ENV_FILE)').read(); \
+content = re.sub(r'^REDIS_URL=.*', 'REDIS_URL=$(LOCAL_REDIS_URL)', content, flags=re.MULTILINE) if 'REDIS_URL=' in content else content + '\nREDIS_URL=$(LOCAL_REDIS_URL)\n'; \
+open('$(ENV_FILE)', 'w').write(content)"
+	@echo "✓ Redis is up  →  localhost:$(REDIS_PORT)"
+	@echo "✓ $(ENV_FILE) updated with REDIS_URL"
+
+# ─── redis-stop ────────────────────────────────────────────────────────────
+redis-stop: ## Stop local Redis container
+	@docker stop $(REDIS_CONTAINER) 2>/dev/null \
+		&& echo "Stopped $(REDIS_CONTAINER)" \
+		|| echo "$(REDIS_CONTAINER) was not running"
+
+# ─── redis-status ──────────────────────────────────────────────────────────
+redis-status: ## Show the Redis container status
+	@docker ps -a --filter "name=^/$(REDIS_CONTAINER)$$" \
 		--format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 # ─── install ───────────────────────────────────────────────────────────────

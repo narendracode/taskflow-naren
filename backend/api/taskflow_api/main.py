@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -9,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from .middleware.logging import RequestLoggingMiddleware
 from .routes import auth, events, projects, tasks, users
+from .sse import sse_manager
 
 # ── Structured logging setup ────────────────────────────────────────────────
 
@@ -30,12 +32,21 @@ logger = structlog.get_logger()
 # ── App ─────────────────────────────────────────────────────────────────────
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown hook — connect and disconnect Redis for SSE pub/sub."""
+    await sse_manager.connect()
+    yield
+    await sse_manager.disconnect()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="TaskFlow API",
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # CORS — allow origins from CORS_ORIGINS env var (comma-separated).
