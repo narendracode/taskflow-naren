@@ -88,15 +88,14 @@ db-stop: ## Stop local Postgres and restore original DATABASE URLs in .env
 
 	@# Restore DATABASE_URL and DATABASE_SYNC_URL from backup if it exists
 	@if [ -f $(REMOTE_URL_BACKUP) ]; then \
-		python3 - <<'PYEOF'; \
+		python3 -c "\
 import re; \
-env_file    = "$(ENV_FILE)"; \
-backup_file = "$(REMOTE_URL_BACKUP)"; \
-backup = dict(line.strip().split("=", 1) for line in open(backup_file) if "=" in line); \
+env_file = '$(ENV_FILE)'; \
+backup_file = '$(REMOTE_URL_BACKUP)'; \
+backup = dict(line.strip().split('=', 1) for line in open(backup_file) if '=' in line); \
 content = open(env_file).read(); \
-[content := re.sub(rf"^{k}=.*", f"{k}={v}", content, flags=re.MULTILINE) for k, v in backup.items()]; \
-open(env_file, "w").write(content) \
-PYEOF \
+[content := re.sub(rf'^{k}=.*', f'{k}={v}', content, flags=re.MULTILINE) for k, v in backup.items()]; \
+open(env_file, 'w').write(content)"; \
 		rm $(REMOTE_URL_BACKUP); \
 		echo "✓ $(ENV_FILE) restored to previous DATABASE URLs"; \
 	else \
@@ -135,8 +134,9 @@ server: ## Start the FastAPI dev server (port 8000, auto-reload)
 		--reload --host 0.0.0.0 --port 8000
 
 # ─── test ──────────────────────────────────────────────────────────────────
-test: ## Run integration tests (set TEST_DATABASE_URL in env or .env)
-	cd $(API_DIR) && uv run --extra dev pytest tests/ -v
+test: ## Run integration tests with coverage report
+	cd $(API_DIR) && uv run --extra dev pytest tests/ -v \
+		--cov --cov-report=term-missing --cov-report=html
 
 # ─── frontend ──────────────────────────────────────────────────────────────
 frontend: ## Start the React dev server (port 3000)
