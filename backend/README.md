@@ -14,6 +14,7 @@ The backend is split into two Python packages orchestrated with Docker Compose:
 - **SQLAlchemy 2 (async)** — ORM with asyncpg driver
 - **Alembic** — database migrations
 - **PostgreSQL 16** — primary datastore
+- **Redis** — Pub/Sub for real-time SSE event broadcasting
 - **bcrypt** — password hashing
 - **PyJWT** — JSON Web Token auth
 - **structlog** — structured logging
@@ -85,6 +86,73 @@ See [`api/.env.example`](api/.env.example) for the full list:
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `JWT_EXPIRY_HOURS` | Token lifetime in hours | `24` |
 | `LOG_LEVEL` | Logging level | `INFO` |
+| `REDIS_URL` | Redis connection URL (used for SSE pub/sub) | `redis://localhost:6379/0` |
+
+## Real-Time Updates (SSE)
+
+TaskFlow uses **Server-Sent Events (SSE)** backed by **Redis Pub/Sub** to push real-time task updates to all connected clients.
+
+### Architecture
+
+```
+Route handler (POST/PATCH/DELETE)
+        │
+        ▼
+  SSEManager.publish()  ──▶  Redis PUBLISH on channel "sse:<project_id>"
+                                        │
+                              ┌─────────┴─────────┐
+                          Node A               Node B        (scales horizontally)
+                              │                    │
+                       _listen() task        _listen() task
+                              │                    │
+                      local asyncio.Queues   local asyncio.Queues
+                              │                    │
+                      StreamingResponse      StreamingResponse
+                              │                    │
+                         Browser A             Browser B
+```
+
+### How It Works
+
+1. **Lifecycle** — The `SSEManager` singleton connects to Redis on app startup and disconnects on shutdown (managed via the FastAPI `lifespan` hook in `main.py`).
+
+2. **Publishing** — When a task is created, updated, or deleted, the route handler calls `sse_manager.publish(project_id, event_type, data)`. This publishes a JSON message to the Redis channel `sse:<project_id>`, ensuring **all API nodes** in the cluster receive it.
+
+3. **SSE Endpoint** — Clients connect to `GET /projects/{project_id}/events?token=<jwt>`. Since the browser `EventSource` API cannot set custom headers, authentication is done via the `token` query parameter. The endpoint returns a `StreamingResponse` with `Content-Type: text/event-stream`.
+
+4. **Local Fan-Out** — When the first subscriber connects for a project on a given node, an `asyncio.Task` is spawned to listen on the Redis channel. Incoming messages are formatted as SSE and pushed to each subscriber's `asyncio.Queue`. When the last subscriber disconnects, the listener is cancelled.
+
+5. **Keepalive** — A `: keepalive` comment is sent every ~25 seconds to prevent proxies from closing idle connections.
+
+### Event Types
+
+| Event | Trigger | Payload |
+|-------|---------|----------|
+| `task_created` | `POST /projects/{id}/tasks` | Full task object |
+| `task_updated` | `PATCH /tasks/{id}` | Full updated task object |
+| `task_deleted` | `DELETE /tasks/{id}` | `{"id": "...", "project_id": "..."}` |
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `taskflow_api/sse.py` | `SSEManager` class — Redis pub/sub, local queue fan-out |
+| `taskflow_api/routes/events.py` | `GET /projects/{id}/events` SSE streaming endpoint |
+| `taskflow_api/routes/projects.py` | Publishes `task_created` on task creation |
+| `taskflow_api/routes/tasks.py` | Publishes `task_updated` and `task_deleted` on mutations |
+| `taskflow_api/main.py` | Startup/shutdown hooks for `sse_manager.connect()`/`disconnect()` |
+
+### Prerequisites
+
+Redis must be running for SSE to work. In Docker Compose it starts automatically. For local development:
+
+```bash
+# Start Redis (macOS)
+brew services start redis
+
+# Or run via Docker
+docker run -d -p 6379:6379 redis:7-alpine
+```
 
 ## Running Tests
 
@@ -108,8 +176,9 @@ backend/
 │   │   ├── main.py             # App factory & exception handlers
 │   │   ├── config.py           # Re-exports common settings
 │   │   ├── dependencies.py     # JWT auth dependency
+│   │   ├── sse.py              # SSE manager (Redis pub/sub + local fan-out)
 │   │   ├── middleware/          # Request logging
-│   │   ├── routes/             # auth, projects, tasks
+│   │   ├── routes/             # auth, projects, tasks, events (SSE)
 │   │   └── schemas/            # Pydantic request/response models
 │   └── tests/                  # Integration tests
 └── common/                     # Shared library
