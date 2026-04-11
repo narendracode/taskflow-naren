@@ -62,16 +62,28 @@ uv sync
 alembic upgrade head
 ```
 
+Or from the project root:
+
+```bash
+make migrate-run
+```
+
 To generate a new migration after model changes:
 
 ```bash
 alembic revision --autogenerate -m "description"
+
+# Or from the project root:
+make migrate-generate name="description"
 ```
 
 ## Seeding the Database
 
 ```bash
 python seeds/seed.py
+
+# Or from the project root:
+make seed
 ```
 
 The seed script is **idempotent** — it skips if users already exist.

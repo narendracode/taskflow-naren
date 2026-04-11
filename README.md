@@ -103,6 +103,35 @@ docker compose down
 
 ---
 
+## Makefile Shortcuts
+
+A root [Makefile](Makefile) wraps common workflows so you don't have to remember paths or flags. Run `make help` to see them all, or refer to the table below:
+
+| Command | Description |
+|---------|-------------|
+| `make env` | Copy `.env.example` → `backend/api/.env` (skips if exists) |
+| `make db-start` | Start a local Postgres container and update `.env` |
+| `make db-stop` | Stop local Postgres and restore original `.env` URLs |
+| `make db-status` | Show the Postgres container status |
+| `make redis-start` | Start a local Redis container and update `.env` |
+| `make redis-stop` | Stop local Redis container |
+| `make redis-status` | Show the Redis container status |
+| `make install` | Install common + api Python packages locally (requires `uv`) |
+| `make migrate-generate name="..."` | Generate a new Alembic migration |
+| `make migrate-run` | Apply all pending Alembic migrations |
+| `make seed` | Run the database seed script (idempotent) |
+| `make server` | Start the FastAPI dev server (port 8000, auto-reload) |
+| `make test` | Run integration tests with coverage report |
+| `make frontend` | Start the React dev server (port 3000) |
+| `make frontend-install` | Install frontend npm dependencies |
+| `make docker-up` | Build and start all services via Docker Compose |
+| `make docker-down` | Stop and remove all Docker Compose services |
+| `make docker-logs` | Tail logs from all Docker Compose services |
+
+Individual service READMEs ([backend/api](backend/api/README.md), [backend/common](backend/common/README.md), [frontend](frontend/README.md)) also reference the relevant `make` commands alongside raw commands.
+
+---
+
 ## Test Credentials
 
 The seed script creates a ready-to-use account:

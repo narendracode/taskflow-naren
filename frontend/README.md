@@ -21,6 +21,10 @@ cd frontend
 cp .env.example .env    # adjust if needed
 npm install
 npm run dev
+
+# Or from the project root:
+make frontend-install
+make frontend
 ```
 
 The app runs at [http://localhost:3000](http://localhost:3000).
@@ -44,7 +48,12 @@ API requests go directly to the backend at `http://localhost:8000` (configurable
 | `npm run build` | Type-check + production build → `dist/` |
 | `npm run preview` | Preview the production build locally |
 
-Or from the project root: `make frontend`
+From the project root:
+
+| Command | Description |
+|---------|-------------|
+| `make frontend` | Start the React dev server (port 3000) |
+| `make frontend-install` | Install frontend npm dependencies |
 
 ## Environment Variables
 
@@ -91,13 +100,16 @@ frontend/
     │   │   └── authSlice.ts    # Auth state (token, user, persistence)
     │   ├── projects/
     │   │   └── projectsApi.ts  # Project CRUD endpoints
-    │   └── tasks/
-    │       └── tasksApi.ts     # Task CRUD endpoints
+    │   ├── tasks/
+    │   │   └── tasksApi.ts     # Task CRUD endpoints
+    │   └── users/
+    │       └── usersApi.ts     # User list & profile endpoints
     ├── hooks/
     │   └── useProjectSSE.ts    # SSE hook — real-time task event subscription
     ├── components/
     │   ├── Navbar.tsx           # Top nav with user avatar & logout
     │   ├── ProtectedRoute.tsx   # Auth guard (redirects to /login)
+    │   ├── ConfirmDialog.tsx    # Reusable confirmation dialog
     │   ├── EmptyState.tsx       # Empty placeholder component
     │   ├── TaskModal.tsx        # Create/edit task dialog
     │   └── ui/                  # Reusable primitives (shadcn/ui style)
