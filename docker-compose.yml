@@ -37,7 +37,7 @@ services:
   # ── Migrate + Seed (common workspace) ──────────────────────────────────────
   migrate:
     build:
-      context: .
+      context: ./backend
       dockerfile: common/Dockerfile
     depends_on:
       postgres:
@@ -50,7 +50,7 @@ services:
   # ── API (api workspace) ─────────────────────────────────────────────────────
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: api/Dockerfile
     depends_on:
       migrate:
@@ -61,7 +61,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - api/.env.example       # override with a real .env in production
+      - backend/api/.env.example       # override with a real .env in production
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/taskflow
       DATABASE_SYNC_URL: postgresql://postgres:postgres@postgres:5432/taskflow
@@ -72,7 +72,7 @@ services:
   # ── Frontend (React + nginx) ────────────────────────────────────────────────
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
       args:
         # Browser reaches the API at this URL — must be host-accessible.

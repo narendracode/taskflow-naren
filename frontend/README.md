@@ -208,6 +208,6 @@ The frontend Dockerfile is a multi-stage build:
 2. **Serve stage** — `nginx:1.27-alpine`, serves the static `dist/` with SPA fallback
 
 ```bash
-# From backend/ directory (includes frontend in the compose stack)
+# From the project root (docker-compose.yml includes the frontend service)
 docker compose up --build
 ```

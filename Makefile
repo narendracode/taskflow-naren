@@ -190,14 +190,13 @@ frontend-install: ## Install frontend npm dependencies
 	cd $(FRONTEND_DIR) && npm install
 
 # ─── Docker Compose shortcuts ──────────────────────────────────────────────
-# All compose commands run from backend/ where docker-compose.yml lives.
-# The frontend service's build context points to ../frontend (relative to backend/).
+# docker-compose.yml lives at the project root.
 
 docker-up: ## Build and start all services (postgres → migrate → api → frontend)
-	cd $(BACKEND_DIR) && docker compose up --build
+	docker compose up --build
 
 docker-down: ## Stop and remove all Docker Compose services
-	cd $(BACKEND_DIR) && docker compose down
+	docker compose down
 
 docker-logs: ## Tail logs from all Docker Compose services
-	cd $(BACKEND_DIR) && docker compose logs -f
+	docker compose logs -f

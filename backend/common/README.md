@@ -91,7 +91,7 @@ The seed script is **idempotent** — it skips if users already exist.
 
 ## Docker Usage
 
-When running via Docker Compose (`docker compose up` from `backend/`), the common service runs as a one-shot `migrate` container that:
+When running via Docker Compose (`docker compose up` from the project root), the common service runs as a one-shot `migrate` container that:
 
 1. Waits for PostgreSQL to be healthy
 2. Runs `alembic upgrade head`

@@ -23,7 +23,7 @@ The backend is split into two Python packages orchestrated with Docker Compose:
 ## Quick Start (Docker)
 
 ```bash
-cd backend
+# From the project root
 docker compose up --build
 ```
 
@@ -167,7 +167,6 @@ Tests run against a separate database (`taskflow_test` by default). Set `TEST_DA
 
 ```
 backend/
-├── docker-compose.yml          # Orchestrates postgres, migrate, api
 ├── api/                        # FastAPI service
 │   ├── Dockerfile
 │   ├── .env.example
